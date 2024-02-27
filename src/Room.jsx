@@ -11,10 +11,7 @@ const Room = ({ roomId }) => {
     const socketRef = useRef();
     const userVideo = useRef();
     const peersRef = useRef([]);
-
     useEffect(() => {
-        // Connect to the server on the correct port (5000)
-        // socketRef.current = connect('http://localhost:5000');
         socketRef.current = io('http://localhost:8080');
         navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
             userVideo.current.srcObject = stream;
@@ -22,26 +19,29 @@ const Room = ({ roomId }) => {
             socketRef.current.on('all users', users => {
                 const peers = [];
                 users.forEach(userId => {
-                    const peer = createPeer(userId, socketRef.current.id, stream);
-                    peersRef.current.push({
-                        peerID: userId,
-                        peer,
-                    })
-                    peers.push(peer);
+                    // Only create a new peer connection if one doesn't already exist
+                    if (!peersRef.current.find(p => p.peerID === userId)) {
+                        const peer = createPeer(userId, socketRef.current.id, stream);
+                        peersRef.current.push({
+                            peerID: userId,
+                            peer,
+                        })
+                        peers.push(peer);
+                    }
                 })
                 setPeers(peers);
-            })
-
-            socketRef.current.on('user joined', payload => {
-                const peer = addPeer(payload.signal, payload.callerID, stream);
-                peersRef.current.push({
-                    peerID: payload.callerID,
-                    peer,
-                })
-
-                setPeers(users => [...users, peer]);
             });
-
+            socketRef.current.on('user joined', newPeerID => { // New event listener
+                // Only create a new peer connection if one doesn't already exist
+                if (!peersRef.current.find(p => p.peerID === newPeerID)) {
+                    const peer = createPeer(newPeerID, socketRef.current.id, stream);
+                    peersRef.current.push({
+                        peerID: newPeerID,
+                        peer,
+                    })
+                    setPeers(peers => [...peers, peer]);
+                }
+            });
             socketRef.current.on('receiving returned signal', payload => {
                 const item = peersRef.current.find(p => p.peerID === payload.id);
                 item.peer.signal(payload.signal);
@@ -55,11 +55,9 @@ const Room = ({ roomId }) => {
             trickle: false,
             stream,
         });
-
         peer.on('signal', signal => {
             socketRef.current.emit('sending signal', { userToSignal, callerID, signal })
         })
-
         return peer;
     }
 
@@ -69,13 +67,10 @@ const Room = ({ roomId }) => {
             trickle: false,
             stream,
         })
-
         peer.on('signal', signal => {
             socketRef.current.emit('returning signal', { signal, callerID })
         })
-
         peer.signal(incomingSignal);
-
         return peer;
     }
 
@@ -123,6 +118,6 @@ const Room = ({ roomId }) => {
             {whiteboardVisible && <Whiteboard />}
         </div>
     );
-}
+};
 
 export default Room;

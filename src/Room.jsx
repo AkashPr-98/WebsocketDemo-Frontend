@@ -47,7 +47,7 @@ const Room = ({ roomId }) => {
                 item.peer.signal(payload.signal);
             });
         })
-    }, []);
+    }, [roomId]);
 
     function createPeer(userToSignal, callerID, stream) {
         const peer = new Peer({

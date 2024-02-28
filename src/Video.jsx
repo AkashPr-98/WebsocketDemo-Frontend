@@ -9,7 +9,7 @@ const Video = ({ peer }) => {
         })
     },
         // eslint-disable-next-line
-        []);
+        [peer]);
 
     return (
         <video playsInline autoPlay ref={ref} style={{ transform: "scaleX(-1)" }} />
